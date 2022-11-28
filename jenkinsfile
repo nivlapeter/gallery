@@ -1,0 +1,57 @@
+pipeline {
+  agent any
+  tools {
+    nodejs 'Node-19.1.0'
+  }
+  stages {
+    stage('clone repo') {
+      steps {
+        git 'https://github.com/nivlapeter/gallery.git'
+      }
+    }
+    stage('Build Project') {
+      steps {
+        sh ''npm install
+      }
+    }
+    stage('Test') {
+      steps {
+        sh 'npm test'
+      }
+    }
+    stage('Deploy') {
+      steps {
+        withCredentials([usernameColonPassword(credentialsId: 'heroku', variable: 'HEROKU_CREDENTIALS')]) {
+          sh 'git push https://${HEROKU_CREDENTIALS}@git.heroku.com/still-everglades-57805.git master'
+        }
+      }
+    }
+  }
+  post {
+    success {
+      slackSend color: 'good', message: "Successfull build for ${BUILD_ID} \
+    Heroku link :  https://still-everglades-57805.herokuapp.com/ \
+    GitHub link :  https://github.com/nivlapeter/gallery.git"
+
+      emailext attachLog: true,
+                body:
+                    """
+                      <p>Success build for id ${BUILD_ID}</p>
+                    """,
+                subject: "Status: 'SUCCESS' -Job \'${env.JOB_NAME}:${env.BUILD_NUMBER}\'",
+                to: 'alvin.ndungu01@student.moringaschool.co'
+    }
+    failure {
+      slackSend color: 'danger', message: "Build for ${BUILD_ID} failed"
+
+      emailext attachLog: true,
+                     body:
+                         """
+                           <p>Build for ${BUILD_ID} failed</p>
+
+                         """,
+                     subject: "Status: FAILURE -Job \'${env.JOB_NAME}:${env.BUILD_NUMBER}\'",
+                     to: 'alvin.ndungu01@student.moringaschool.co'
+    }
+  }
+}
